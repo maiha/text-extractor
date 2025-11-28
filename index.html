@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Extractor</title>
+    <style>
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            align-self: flex-start;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .test-container {
+            margin-top: 30px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+
+        .settings-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background-color: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .tag button {
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            font-size: 1.1em;
+            line-height: 1;
+        }
+
+        .test-result {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .pass {
+            border-left: 5px solid #28a745;
+            background-color: #f0fff4;
+        }
+
+        .fail {
+            border-left: 5px solid #dc3545;
+            background-color: #fff5f5;
+        }
+
+        .diff {
+            margin-top: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .diff-expected {
+            color: #155724;
+            background-color: #d4edda;
+            padding: 2px 4px;
+        }
+
+        .diff-actual {
+            color: #721c24;
+            background-color: #f8d7da;
+            padding: 2px 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Text Extractor</h1>
+
+    <div class="container">
+        <div>
+            <label for="templateSelect" class="label">テンプレート選択:</label>
+            <select id="templateSelect">
+                <option value="foodSchedule">食品販売予定リスト</option>
+                <option value="freeFormat">自由抽出 (要約・構造化)</option>
+            </select>
+        </div>
+
+        <!-- 設定エリア (API設定) -->
+        <details class="settings-container" open>
+            <summary style="cursor: pointer; font-weight: bold;">設定: AI API設定</summary>
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 5px;">
+                    未知の店名や商品名を高精度に抽出するため、AI (LLM) を使用します。<br>
+                    APIキーはブラウザ内にのみ保存され、外部サーバーには送信されません。
+                </p>
+                <div>
+                    <label for="aiProvider" class="label">AIプロバイダー:</label>
+                    <select id="aiProvider" onchange="updateUiState(); saveApiSettings()">
+                        <option value="gemini">Google Gemini (推奨・無料枠あり)</option>
+                        <option value="openai">OpenAI (GPT-4o/mini)</option>
+                    </select>
+                </div>
+                <div id="apiKeyField">
+                    <label for="apiKey" class="label">API Key:</label>
+                    <input type="password" id="apiKey" placeholder="sk-..."
+                        style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
+                        onchange="saveApiSettings()">
+                    <p id="apiKeyHelp" style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                        <!-- JSで書き換え -->
+                    </p>
+                </div>
+            </div>
+        </details>
+
+        <div>
+            <label for="inputText" class="label">入力テキスト (自然文章):</label>
+            <textarea id="inputText"
+                placeholder="例: 松のやでは、12月3日（水）から『国産雪国育ち厚切りロースかつ定食』を発売します。カロリーは1135kcalです。"></textarea>
+        </div>
+
+        <button onclick="processText()">抽出・整形を実行</button>
+
+        <div>
+            <label for="output" class="label">出力結果:</label>
+            <div id="output"></div>
+        </div>
+
+        <!-- テストケース追加エリア -->
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ccc;">
+            <h3>テストケース登録</h3>
+            <p style="font-size: 0.9em; color: #666;">
+                現在の入力と、期待する正解（手動修正後）をテストケースとして登録します。<br>
+                登録したテストケースをAIに共有することで、ロジックの改善を依頼できます。
+            </p>
+            <div>
+                <label for="expectedOutput" class="label">期待する正解 (手動で修正してください):</label>
+                <textarea id="expectedOutput" style="height: 80px;" placeholder="ここに正しい出力結果を入力してください"></textarea>
+            </div>
+            <div style="margin-top: 10px;">
+                <button onclick="addTestCase()" style="background-color: #28a745;">テストケースに追加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 開発用テストランナー -->
+    <div class="container test-container">
+        <h2>開発用テストランナー</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button onclick="runTests()" style="background-color: #6c757d;">テスト実行</button>
+            <button onclick="exportTestCases()" style="background-color: #17a2b8;">テストケースをコピー (AI共有用)</button>
+        </div>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        // API設定の読み込み
+        window.addEventListener('DOMContentLoaded', () => {
+            loadApiSettings();
+            updateUiState();
+        });
+
+        function loadApiSettings() {
+            const provider = localStorage.getItem('textExtractor_aiProvider');
+            const key = localStorage.getItem('textExtractor_apiKey');
+            if (provider) document.getElementById('aiProvider').value = provider;
+            if (key) document.getElementById('apiKey').value = key;
+        }
+
+        function saveApiSettings() {
+            const provider = document.getElementById('aiProvider').value;
+            const key = document.getElementById('apiKey').value;
+            localStorage.setItem('textExtractor_aiProvider', provider);
+            localStorage.setItem('textExtractor_apiKey', key);
+        }
+
+        function updateUiState() {
+            const provider = document.getElementById('aiProvider').value;
+            const help = document.getElementById('apiKeyHelp');
+            const apiKeyField = document.getElementById('apiKeyField');
+
+            if (provider === 'gemini') {
+                apiKeyField.style.display = 'block';
+                help.innerHTML = 'Google Gemini APIは無料枠で利用可能です。<br><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #007bff; text-decoration: underline;">Google AI Studio で APIキーを取得する</a>';
+            } else if (provider === 'openai') {
+                apiKeyField.style.display = 'block';
+                help.innerHTML = 'OpenAI APIキーを入力してください（従量課金）。';
+            } else {
+                // chrome_builtin
+                apiKeyField.style.display = 'none';
+                help.innerHTML = '';
+            }
+        }
+
+        // AI呼び出し関数
+        async function callAI(text, systemPrompt, provider, apiKey) {
+            if (provider === 'openai') {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini", // コストパフォーマンスの良いモデル
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ],
+                        temperature: 0
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(`OpenAI API Error: ${err.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.choices[0].message.content.trim();
+
+            } else if (provider === 'gemini') {
+                // Gemini API (Google AI Studio)
+                // 速度とコストを重視し、軽量モデル(Flash)を優先的に試行する
+                const modelsToTry = [
+                    "gemini-1.5-flash",      // 最速・安定・最安 (推奨)
+                    "gemini-2.5-flash-lite", // 最新軽量版
+                    "gemini-2.5-flash",      // 最新標準
+                    "gemini-pro"             // レガシー
+                ];
+
+                let lastError;
+                for (const model of modelsToTry) {
+                    try {
+                        // APIバージョンは v1beta を使用 (v1も存在するがbetaの方が新しいモデルへの対応が早い場合がある)
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [{
+                                        text: systemPrompt + "\n\n入力テキスト:\n" + text
+                                    }]
+                                }]
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const err = await response.json();
+                            // モデルが見つからないエラー(404)なら次のモデルを試す
+                            if (response.status === 404 || (err.error && err.error.message.includes('not found'))) {
+                                console.warn(`Model ${model} not found, trying next...`);
+                                lastError = new Error(`Gemini API Error (${model}): ${err.error?.message}`);
+                                continue;
+                            }
+                            throw new Error(`Gemini API Error: ${err.error?.message || response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        return data.candidates[0].content.parts[0].text.trim();
+
+                    } catch (e) {
+                        lastError = e;
+                        // ネットワークエラーや認証エラーなど、モデル起因でない場合はループを抜けてエラーにする
+                        if (!e.message.includes('not found') && !e.message.includes('404')) {
+                            throw e;
+                        }
+                    }
+                }
+                throw lastError;
+            }
+
+            throw new Error("Unknown provider");
+        }
+
+        // テストケース定義 (初期データ)
+        let testCases = [
+            {
+                "id": 2,
+                "name": "User Test Case 2",
+                "template": "foodSchedule",
+                "input": "2025年12月3日(水)～12月5日(金)の3日間、たこ焼きチェーンの“築地銀だこ”全店で「年末大感謝祭」が開催されます。\n\n築地銀だこ 感謝祭セール\nぜったいうまい!! たこ焼 (ソース・8個入り)\n期間中は、通常620円(税別)で販売されている『たこ焼(ソース)8個入り』1舟を終日390円(税別)で販売。※お持ち帰り421円(税込)、店内飲食429円(税込)。",
+                "expected": "12/03(水)「たこ焼(ソース)8個入り」(築地銀だこ)"
+            },
+            {
+                "id": 3,
+                "name": "User Test Case 3",
+                "template": "foodSchedule",
+                "input": "株式会社松屋フーズでは、とんかつ専門店の「松のや」におきまして、2025年12月3日（水）午後3時より、「国産雪国育ち厚切りロースかつ定食」を発売いたします。",
+                "expected": "12/03(水)「国産雪国育ち厚切りロースかつ定食」(松のや)"
+            }
+        ];
+
+        // テンプレート定義
+        const templates = {
+            foodSchedule: {
+                name: "食品販売予定リスト",
+                process: async (text) => {
+                    const provider = document.getElementById('aiProvider').value;
+                    const apiKey = document.getElementById('apiKey').value;
+
+                    if (provider !== 'chrome_builtin' && !apiKey) {
+                        throw new Error("APIキーが設定されていません。設定エリアに入力してください。");
+                    }
+
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const systemPrompt = `
+あなたはテキストから食品の販売情報を抽出するアシスタントです。
+現在の日時は ${currentYear}年${now.getMonth() + 1}月${now.getDate()}日 です。
+入力されたテキストから、以下の情報を抽出し、指定されたフォーマットで出力してください。
+
+フォーマット:
+MM/DD(曜)「商品名」(店名) カロリー
+
+ルール:
+1. 日付、曜日、商品名、店名、カロリーを抽出すること。
+2. 日付は MM/DD 形式。曜日は (月)〜(日) の形式とし、入力に記載がない場合は ${currentYear}年 (または文脈に応じた適切な年) の日付として正しい曜日を計算して補完すること。
+3. 商品名は「」で囲むこと。
+4. 店名は文脈から判断し、()で囲むこと。
+5. カロリーは "123kcal" の形式にすること。不明な場合は省略可。
+6. 複数の商品がある場合は改行区切りで出力すること。
+7. 余計な挨拶や説明は一切不要。抽出結果のみを出力すること。
+8. 抽出対象がない場合は "抽出対象が見つかりませんでした。" と出力すること。
+`;
+                    return await callAI(text, systemPrompt, provider, apiKey);
+                }
+            },
+            freeFormat: {
+                name: "自由抽出 (要約・構造化)",
+                process: async (text) => {
+                    const provider = document.getElementById('aiProvider').value;
+                    const apiKey = document.getElementById('apiKey').value;
+
+                    if (provider !== 'chrome_builtin' && !apiKey) {
+                        throw new Error("APIキーが設定されていません。設定エリアに入力してください。");
+                    }
+
+                    const systemPrompt = `
+あなたは優秀なテキスト処理アシスタントです。
+入力されたテキストから重要な情報を抽出し、見やすく整理して出力してください。
+箇条書きやMarkdown形式を活用してください。
+`;
+                    return await callAI(text, systemPrompt, provider, apiKey);
+                }
+            }
+        };
+
+        async function processText() {
+            const input = document.getElementById('inputText').value;
+            const templateKey = document.getElementById('templateSelect').value;
+            const outputDiv = document.getElementById('output');
+            const expectedOutput = document.getElementById('expectedOutput');
+
+            if (!input) {
+                outputDiv.textContent = "テキストを入力してください。";
+                return;
+            }
+
+            const template = templates[templateKey];
+            if (template) {
+                try {
+                    outputDiv.textContent = "AI処理中...";
+                    const result = await template.process(input);
+                    outputDiv.textContent = result;
+                    // 実行結果を「期待する正解」欄にもコピー（修正しやすくするため）
+                    // ただし、既にユーザーが何か入力している場合は上書きしない
+                    if (!expectedOutput.value) {
+                        expectedOutput.value = result;
+                    }
+                } catch (e) {
+                    outputDiv.textContent = "エラーが発生しました: " + e.message;
+                    console.error(e);
+                }
+            } else {
+                outputDiv.textContent = "テンプレートが見つかりません。";
+            }
+        }
+
+        function addTestCase() {
+            const input = document.getElementById('inputText').value;
+            const expected = document.getElementById('expectedOutput').value;
+            const templateKey = document.getElementById('templateSelect').value;
+
+            if (!input || !expected) {
+                alert("入力テキストと期待する正解の両方が必要です。");
+                return;
+            }
+
+            const newId = testCases.length > 0 ? Math.max(...testCases.map(t => t.id)) + 1 : 1;
+            const newTestCase = {
+                id: newId,
+                name: `User Test Case ${newId}`,
+                template: templateKey,
+                input: input,
+                expected: expected
+            };
+
+            testCases.push(newTestCase);
+            alert(`テストケース #${newId} を追加しました。\n下の「テスト実行」ボタンで確認できます。`);
+
+            // 自動的にテスト実行して結果を表示
+            runTests();
+        }
+
+        function exportTestCases() {
+            const json = JSON.stringify(testCases, null, 2);
+            navigator.clipboard.writeText(json).then(() => {
+                alert("テストケースをクリップボードにコピーしました。\nAIチャットに貼り付けてください。");
+            }).catch(err => {
+                console.error('コピーに失敗しました:', err);
+                alert("コピーに失敗しました。コンソールを確認してください。");
+            });
+        }
+
+        async function runTests() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<div style="color: #666;">テスト実行中... (AI呼び出しのため時間がかかります)</div>';
+
+            let passCount = 0;
+            let resultsHtml = '';
+
+            for (const test of testCases) {
+                const template = templates[test.template];
+                if (!template) {
+                    resultsHtml += `<div class="test-result fail"><strong>Test ${test.id}:</strong> Template not found</div>`;
+                    continue;
+                }
+
+                let actual = "";
+                try {
+                    actual = await template.process(test.input);
+                } catch (e) {
+                    actual = "Error: " + e.message;
+                }
+
+                // AIの出力は揺らぎがあるため、完全一致ではなく、重要な要素が含まれているかで判定すべきだが、
+                // 今回は単純化のため完全一致または正規化後の比較を行う
+                // (改行コードや空白の揺らぎを吸収)
+                const normalize = (str) => str.replace(/\s+/g, ' ').trim();
+                const isPass = normalize(actual) === normalize(test.expected);
+
+                if (isPass) passCount++;
+
+                const statusClass = isPass ? "pass" : "fail";
+                const statusLabel = isPass ? "PASS" : "FAIL";
+
+                let html = `<div class="test-result ${statusClass}">
+                    <div><strong>[${statusLabel}] ${test.name}</strong></div>
+                    <div style="font-size: 0.9em; color: #666; margin: 5px 0;">Input: ${test.input.substring(0, 80)}${test.input.length > 80 ? '...' : ''}</div>`;
+
+                if (!isPass) {
+                    html += `<div class="diff">
+                        <div>Expected: <span class="diff-expected">${test.expected}</span></div>
+                        <div style="margin-top: 3px;">Actual:   <span class="diff-actual">${actual}</span></div>
+                    </div>`;
+                }
+
+                html += `</div>`;
+                resultsHtml += html;
+            }
+
+            const summaryColor = passCount === testCases.length ? "green" : "red";
+            resultsDiv.innerHTML = `<div style="margin-bottom: 15px; font-weight: bold; color: ${summaryColor};">Result: ${passCount}/${testCases.length} Passed</div>` + resultsHtml;
+        }
+    </script>
+</body>
+
+</html>
