@@ -197,7 +197,11 @@
         <button onclick="processText()">抽出・整形を実行</button>
 
         <div>
-            <label for="output" class="label">出力結果:</label>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="output" class="label">出力結果:</label>
+                <button id="copyButton" onclick="copyOutput()"
+                    style="padding: 5px 10px; font-size: 12px; background-color: #6c757d;">コピー</button>
+            </div>
             <div id="output"></div>
         </div>
 
@@ -454,6 +458,27 @@ MM/DD(曜)「商品名」(店名) カロリー
             } else {
                 outputDiv.textContent = "テンプレートが見つかりません。";
             }
+        }
+
+        function copyOutput() {
+            const outputText = document.getElementById('output').textContent;
+            const copyButton = document.getElementById('copyButton');
+
+            if (!outputText) {
+                return;
+            }
+            navigator.clipboard.writeText(outputText).then(() => {
+                const originalText = copyButton.textContent;
+                copyButton.textContent = "コピーしました！";
+                copyButton.style.backgroundColor = "#28a745"; // 緑色に変更
+
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.style.backgroundColor = "#6c757d"; // 元の色に戻す
+                }, 2000);
+            }).catch(err => {
+                console.error('コピーに失敗しました:', err);
+            });
         }
 
         function addTestCase() {
