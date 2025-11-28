@@ -70,81 +70,12 @@
             display: block;
         }
 
-        .test-container {
-            margin-top: 30px;
-            border-top: 2px solid #eee;
-            padding-top: 20px;
-        }
-
         .settings-container {
             margin-top: 20px;
             padding: 15px;
             background-color: #f8f9fa;
             border: 1px solid #ddd;
             border-radius: 4px;
-        }
-
-        .tag-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        .tag {
-            background-color: #e9ecef;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .tag button {
-            background: none;
-            border: none;
-            color: #dc3545;
-            font-weight: bold;
-            cursor: pointer;
-            padding: 0;
-            font-size: 1.1em;
-            line-height: 1;
-        }
-
-        .test-result {
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .pass {
-            border-left: 5px solid #28a745;
-            background-color: #f0fff4;
-        }
-
-        .fail {
-            border-left: 5px solid #dc3545;
-            background-color: #fff5f5;
-        }
-
-        .diff {
-            margin-top: 5px;
-            font-family: monospace;
-            font-size: 0.9em;
-        }
-
-        .diff-expected {
-            color: #155724;
-            background-color: #d4edda;
-            padding: 2px 4px;
-        }
-
-        .diff-actual {
-            color: #721c24;
-            background-color: #f8d7da;
-            padding: 2px 4px;
         }
     </style>
 </head>
@@ -204,32 +135,6 @@
             </div>
             <div id="output"></div>
         </div>
-
-        <!-- テストケース追加エリア -->
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ccc;">
-            <h3>テストケース登録</h3>
-            <p style="font-size: 0.9em; color: #666;">
-                現在の入力と、期待する正解（手動修正後）をテストケースとして登録します。<br>
-                登録したテストケースをAIに共有することで、ロジックの改善を依頼できます。
-            </p>
-            <div>
-                <label for="expectedOutput" class="label">期待する正解 (手動で修正してください):</label>
-                <textarea id="expectedOutput" style="height: 80px;" placeholder="ここに正しい出力結果を入力してください"></textarea>
-            </div>
-            <div style="margin-top: 10px;">
-                <button onclick="addTestCase()" style="background-color: #28a745;">テストケースに追加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 開発用テストランナー -->
-    <div class="container test-container">
-        <h2>開発用テストランナー</h2>
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button onclick="runTests()" style="background-color: #6c757d;">テスト実行</button>
-            <button onclick="exportTestCases()" style="background-color: #17a2b8;">テストケースをコピー (AI共有用)</button>
-        </div>
-        <div id="testResults"></div>
     </div>
 
     <script>
@@ -356,24 +261,6 @@
             throw new Error("Unknown provider");
         }
 
-        // テストケース定義 (初期データ)
-        let testCases = [
-            {
-                "id": 2,
-                "name": "User Test Case 2",
-                "template": "foodSchedule",
-                "input": "2025年12月3日(水)～12月5日(金)の3日間、たこ焼きチェーンの“築地銀だこ”全店で「年末大感謝祭」が開催されます。\n\n築地銀だこ 感謝祭セール\nぜったいうまい!! たこ焼 (ソース・8個入り)\n期間中は、通常620円(税別)で販売されている『たこ焼(ソース)8個入り』1舟を終日390円(税別)で販売。※お持ち帰り421円(税込)、店内飲食429円(税込)。",
-                "expected": "12/03(水)「たこ焼(ソース)8個入り」(築地銀だこ)"
-            },
-            {
-                "id": 3,
-                "name": "User Test Case 3",
-                "template": "foodSchedule",
-                "input": "株式会社松屋フーズでは、とんかつ専門店の「松のや」におきまして、2025年12月3日（水）午後3時より、「国産雪国育ち厚切りロースかつ定食」を発売いたします。",
-                "expected": "12/03(水)「国産雪国育ち厚切りロースかつ定食」(松のや)"
-            }
-        ];
-
         // テンプレート定義
         const templates = {
             foodSchedule: {
@@ -433,7 +320,6 @@ MM/DD(曜)「商品名」(店名) カロリー
             const input = document.getElementById('inputText').value;
             const templateKey = document.getElementById('templateSelect').value;
             const outputDiv = document.getElementById('output');
-            const expectedOutput = document.getElementById('expectedOutput');
 
             if (!input) {
                 outputDiv.textContent = "テキストを入力してください。";
@@ -446,11 +332,6 @@ MM/DD(曜)「商品名」(店名) カロリー
                     outputDiv.textContent = "AI処理中...";
                     const result = await template.process(input);
                     outputDiv.textContent = result;
-                    // 実行結果を「期待する正解」欄にもコピー（修正しやすくするため）
-                    // ただし、既にユーザーが何か入力している場合は上書きしない
-                    if (!expectedOutput.value) {
-                        expectedOutput.value = result;
-                    }
                 } catch (e) {
                     outputDiv.textContent = "エラーが発生しました: " + e.message;
                     console.error(e);
@@ -479,93 +360,6 @@ MM/DD(曜)「商品名」(店名) カロリー
             }).catch(err => {
                 console.error('コピーに失敗しました:', err);
             });
-        }
-
-        function addTestCase() {
-            const input = document.getElementById('inputText').value;
-            const expected = document.getElementById('expectedOutput').value;
-            const templateKey = document.getElementById('templateSelect').value;
-
-            if (!input || !expected) {
-                alert("入力テキストと期待する正解の両方が必要です。");
-                return;
-            }
-
-            const newId = testCases.length > 0 ? Math.max(...testCases.map(t => t.id)) + 1 : 1;
-            const newTestCase = {
-                id: newId,
-                name: `User Test Case ${newId}`,
-                template: templateKey,
-                input: input,
-                expected: expected
-            };
-
-            testCases.push(newTestCase);
-            alert(`テストケース #${newId} を追加しました。\n下の「テスト実行」ボタンで確認できます。`);
-
-            // 自動的にテスト実行して結果を表示
-            runTests();
-        }
-
-        function exportTestCases() {
-            const json = JSON.stringify(testCases, null, 2);
-            navigator.clipboard.writeText(json).then(() => {
-                alert("テストケースをクリップボードにコピーしました。\nAIチャットに貼り付けてください。");
-            }).catch(err => {
-                console.error('コピーに失敗しました:', err);
-                alert("コピーに失敗しました。コンソールを確認してください。");
-            });
-        }
-
-        async function runTests() {
-            const resultsDiv = document.getElementById('testResults');
-            resultsDiv.innerHTML = '<div style="color: #666;">テスト実行中... (AI呼び出しのため時間がかかります)</div>';
-
-            let passCount = 0;
-            let resultsHtml = '';
-
-            for (const test of testCases) {
-                const template = templates[test.template];
-                if (!template) {
-                    resultsHtml += `<div class="test-result fail"><strong>Test ${test.id}:</strong> Template not found</div>`;
-                    continue;
-                }
-
-                let actual = "";
-                try {
-                    actual = await template.process(test.input);
-                } catch (e) {
-                    actual = "Error: " + e.message;
-                }
-
-                // AIの出力は揺らぎがあるため、完全一致ではなく、重要な要素が含まれているかで判定すべきだが、
-                // 今回は単純化のため完全一致または正規化後の比較を行う
-                // (改行コードや空白の揺らぎを吸収)
-                const normalize = (str) => str.replace(/\s+/g, ' ').trim();
-                const isPass = normalize(actual) === normalize(test.expected);
-
-                if (isPass) passCount++;
-
-                const statusClass = isPass ? "pass" : "fail";
-                const statusLabel = isPass ? "PASS" : "FAIL";
-
-                let html = `<div class="test-result ${statusClass}">
-                    <div><strong>[${statusLabel}] ${test.name}</strong></div>
-                    <div style="font-size: 0.9em; color: #666; margin: 5px 0;">Input: ${test.input.substring(0, 80)}${test.input.length > 80 ? '...' : ''}</div>`;
-
-                if (!isPass) {
-                    html += `<div class="diff">
-                        <div>Expected: <span class="diff-expected">${test.expected}</span></div>
-                        <div style="margin-top: 3px;">Actual:   <span class="diff-actual">${actual}</span></div>
-                    </div>`;
-                }
-
-                html += `</div>`;
-                resultsHtml += html;
-            }
-
-            const summaryColor = passCount === testCases.length ? "green" : "red";
-            resultsDiv.innerHTML = `<div style="margin-bottom: 15px; font-weight: bold; color: ${summaryColor};">Result: ${passCount}/${testCases.length} Passed</div>` + resultsHtml;
         }
     </script>
 </body>
